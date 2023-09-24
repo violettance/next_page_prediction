@@ -32,7 +32,7 @@ WHERE
 ORDER BY
   ga4.event_timestamp;
 
--- page view order - main query
+-- main query - page view order, 1 day
 WITH base_data AS (
   SELECT
     ga4.*
@@ -61,3 +61,32 @@ WHERE
   ORDER BY
   session_id,
   event_timestamp;
+
+  -- main query - page view order, 15 day
+WITH base_data AS (
+  SELECT
+    ga4.*
+  FROM
+    `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` ga4,
+    unnest(ga4.event_params) ep
+  WHERE
+    _TABLE_SUFFIX BETWEEN '20210101' AND '20210115'
+    AND ga4.event_name = 'page_view'
+  ORDER BY
+    ga4.event_timestamp
+)
+SELECT
+  bd.event_timestamp,
+  --bep.key,
+  SUM(COALESCE(bep.value.int_value, 0)) AS session_id,
+  STRING_AGG(bep.value.string_value, '') AS page_path
+FROM
+  base_data bd,
+  unnest(bd.event_params) bep
+WHERE
+  bep.key IN ('page_location', 'ga_session_id')
+GROUP BY
+  bd.event_timestamp
+ORDER BY
+  session_id,
+  bd.event_timestamp;
